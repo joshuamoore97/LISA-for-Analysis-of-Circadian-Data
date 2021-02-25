@@ -133,7 +133,58 @@ if isfile(fullfile(pwd,'breakxaxis.m')) && isfile(fullfile(pwd,'breakyaxis.m'))
         % SUBPLOT(3,3,5)
         ax(5) =subplot(3,3,5);
         [LI] = LocalMoran2((phases),radius); % Compute Local Moran
+        leaf = ~isnan(phases);
+        [indx,indy] = find(leaf == 1); % Identify indices of leaf cells
+            
+        LISArand = zeros(length(phases(:,1)),length(phases(1,:)),1000);
+        for t = 1:1000 % 1000 Iterations
+            idx = randperm(length(indx)); % Permute locations of cells
+            
+            indx2 = indx(idx); % Apply permutation to x coord of cells
+            indy2 = indy(idx); % Apply permutation to x coord of cells
+            random = phases;
+            for j = 1:length(indx)
+                random(indx(j),indy(j)) = phases(indx2(j),indy2(j)); % Conditional Randomisation
+            end
+            LISArand(:,:,t) = LocalMoran2(random,radius); % Compute local Moran for current randomisation
+        end
+        % Initialise upper and lower limit for significance calculations
+        ul = zeros(size(leaf));
+        ll = ul;
+        for t = 1:length(LISArand(:,1,1))
+            for k = 1:length(LISArand(1,:,1))
+                if leaf(t,k) == 1
+                    temp = squeeze(LISArand(t,k,:));
+                    temp = reshape(temp,1,[]);
+                    temp(isnan(temp))=[];
+                    pd = fitdist(temp','Kernel'); % Fit normal distribution to data
+                    xvals = -6+0.05:0.05:6;
+                    p = cdf(pd,xvals); % Compute cdf from fitted normal distribution
+                    %                     ll(t,k) = (xvals(find(p >= 0.05/nansum(leaf,'all'),1))); % Bonferroni Condition
+                    %                     ul(t,k) = (xvals(find(p >= 1-(0.05/nansum(leaf,'all')),1)));  % Bonferroni Condition
+                    ll(t,k) = (xvals(find(p >= 0.05,1))); % Alpha = 0.05
+                    ul(t,k) = (xvals(find(p >= 0.95,1))); % Alpha = 0.05
+                end
+            end
+            
+        end
+        temp = zeros(size(leaf)); % Initialise 2D matrix
+        temp(LI>=ul) = 1; % Cells in temp with local Moran greater than upper limit are significant
+        Significance = temp; % Assign temp to significance matrix
+        Clusters = (Significance == 1); % Clusters are made up of significant cells
+        L = bwlabel(Clusters); % Label clusters
         imagesc(LI); % Plot image of local Moran
+        hold on
+        % Plot clusters
+        for j = 1:max(L,[],'all')
+            Clusters = (L==j); % Find current cluster in L
+            binaryImage = Clusters; % binary image for cluster location
+            boundaries = bwboundaries(binaryImage); % Identify cluster boundary
+            x = boundaries{1}(:, 2); % x coord of boundary
+            y = boundaries{1}(:, 1); % y coord of boundary
+            hold on
+            plot(x,y,'color','red','LineWidth',4) % plot each of the clusters
+        end
         caxis([0 1]) % Set colourbar limits
         xlabel(['$I^{\theta}$ = ',num2str(round(nanmean(LI,'all'),3))],'fontsize',40,'interpreter','latex') % Report global Moran value
         hold on
@@ -274,8 +325,57 @@ if isfile(fullfile(pwd,'breakxaxis.m')) && isfile(fullfile(pwd,'breakyaxis.m'))
         % SUBPLOT(3,3,2)
         ax(2) =subplot(3,3,4);
         LI = LocalMoran2((phases2),radius);  % Calculate Local Moran from phase data
+        leaf = ~isnan(phases2);
+        LISArand = zeros(length(phases2(:,1)),length(phases2(1,:)),1000);
+        for t = 1:1000 % 1000 Iterations
+            idx = randperm(length(indx)); % Permute locations of cells
+            
+            indx2 = indx(idx); % Apply permutation to x coord of cells
+            indy2 = indy(idx); % Apply permutation to x coord of cells
+            random = phases2;
+            for j = 1:length(indx)
+                random(indx(j),indy(j)) = phases2(indx2(j),indy2(j)); % Conditional Randomisation
+            end
+            LISArand(:,:,t) = LocalMoran2(random,radius); % Compute local Moran for current randomisation
+        end
+        % Initialise upper and lower limit for significance calculations
+        ul = zeros(size(leaf));
+        ll = ul;
+         for t = 1:length(LISArand(:,1,1))
+            for k = 1:length(LISArand(1,:,1))
+                if leaf(t,k) == 1
+                    temp = squeeze(LISArand(t,k,:));
+                    temp = reshape(temp,1,[]);
+                    temp(isnan(temp))=[];
+                    pd = fitdist(temp','Kernel'); % Fit normal distribution to data
+                    xvals = -6+0.05:0.05:6;
+                    p = cdf(pd,xvals); % Compute cdf from fitted normal distribution
+                    %                     ll(t,k) = (xvals(find(p >= 0.05/nansum(leaf,'all'),1))); % Bonferroni Condition
+                    %                     ul(t,k) = (xvals(find(p >= 1-(0.05/nansum(leaf,'all')),1)));  % Bonferroni Condition
+                    ll(t,k) = (xvals(find(p >= 0.05,1))); % Alpha = 0.05
+                    ul(t,k) = (xvals(find(p >= 0.95,1))); % Alpha = 0.05
+                end
+            end
+            
+        end
+        temp = zeros(size(leaf)); % Initialise 2D matrix
+        temp(LI>=ul) = 1; % Cells in temp with local Moran greater than upper limit are significant
+        Significance = temp; % Assign temp to significance matrix
+        Clusters = (Significance == 1); % Clusters are made up of significant cells
+        L = bwlabel(Clusters); % Label clusters
         imagesc(LI) % Plot local Moran as image
         caxis([0 1]) % Set colourbar limits
+        hold on
+        % Plot clusters
+        for j = 1:max(L,[],'all')
+            Clusters = (L==j); % Find current cluster in L
+            binaryImage = Clusters; % binary image for cluster location
+            boundaries = bwboundaries(binaryImage); % Identify cluster boundary
+            x = boundaries{1}(:, 2); % x coord of boundary
+            y = boundaries{1}(:, 1); % y coord of boundary
+            hold on
+            plot(x,y,'color','red','LineWidth',4) % plot each of the clusters
+        end
         xlabel(['$I^{\theta}$ = ',num2str(round(nanmean(LI,'all'),3))],'fontsize',40,'interpreter','latex') % Report global Moran value
         set(gca,'xtick',[]) % Remove xtick
         set(gca,'ytick',[]) % Remove ytick
@@ -420,8 +520,57 @@ if isfile(fullfile(pwd,'breakxaxis.m')) && isfile(fullfile(pwd,'breakyaxis.m'))
         % SUBPLOT(3,3,6)
         ax(8) =subplot(3,3,6);
         % Compute local Moran
+        leaf = ~isnan(phases2);
         [LI] = LocalMoran2((phases2),radius);
+        LISArand = zeros(length(phases2(:,1)),length(phases2(1,:)),1000);
+        for t = 1:1000 % 1000 Iterations
+            idx = randperm(length(indx)); % Permute locations of cells
+            
+            indx2 = indx(idx); % Apply permutation to x coord of cells
+            indy2 = indy(idx); % Apply permutation to x coord of cells
+            random = phases2;
+            for j = 1:length(indx)
+                random(indx(j),indy(j)) = phases2(indx2(j),indy2(j)); % Conditional Randomisation
+            end
+            LISArand(:,:,t) = LocalMoran2(random,radius); % Compute local Moran for current randomisation
+        end
+        % Initialise upper and lower limit for significance calculations
+        ul = zeros(size(leaf));
+        ll = ul;
+         for t = 1:length(LISArand(:,1,1))
+            for k = 1:length(LISArand(1,:,1))
+                if leaf(t,k) == 1
+                    temp = squeeze(LISArand(t,k,:));
+                    temp = reshape(temp,1,[]);
+                    temp(isnan(temp))=[];
+                    pd = fitdist(temp','Kernel'); % Fit normal distribution to data
+                    xvals = -6+0.05:0.05:6;
+                    p = cdf(pd,xvals); % Compute cdf from fitted normal distribution
+                    %                     ll(t,k) = (xvals(find(p >= 0.05/nansum(leaf,'all'),1))); % Bonferroni Condition
+                    %                     ul(t,k) = (xvals(find(p >= 1-(0.05/nansum(leaf,'all')),1)));  % Bonferroni Condition
+                    ll(t,k) = (xvals(find(p >= 0.05,1))); % Alpha = 0.05
+                    ul(t,k) = (xvals(find(p >= 0.95,1))); % Alpha = 0.05
+                end
+            end
+            
+        end
+        temp = zeros(size(leaf)); % Initialise 2D matrix
+        temp(LI>=ul) = 1; % Cells in temp with local Moran greater than upper limit are significant
+        Significance = temp; % Assign temp to significance matrix
+        Clusters = (Significance == 1); % Clusters are made up of significant cells
+        L = bwlabel(Clusters); % Label clusters
         imagesc(LI);% Plot image of local Moran
+        hold on
+        % Plot clusters
+        for j = 1:max(L,[],'all')
+            Clusters = (L==j); % Find current cluster in L
+            binaryImage = Clusters; % binary image for cluster location
+            boundaries = bwboundaries(binaryImage); % Identify cluster boundary
+            x = boundaries{1}(:, 2); % x coord of boundary
+            y = boundaries{1}(:, 1); % y coord of boundary
+            hold on
+            plot(x,y,'color','red','LineWidth',4) % plot each of the clusters
+        end
         h=colorbar; % Colourbar
         h.FontSize = 25; % Set font size of colourbar
         ylabel(h, '$I^{\theta}_{i}$','fontsize',40,'interpreter','latex') % Assign label to colourbar
@@ -679,7 +828,7 @@ if isfile(fullfile(pwd,'breakxaxis.m')) && isfile(fullfile(pwd,'breakyaxis.m'))
                                 set(p,'AlphaData',nansum(im,3)>0) % Set all not t,k to invisible
                                 hold on
                                 text(k+1,t+1,'1','interpreter','latex','FontSize',25) % Label pixel
-                            elseif (k == 10 && t == 20 && m == 1 && sum(leaffile == 'CCA1LL_6.mat')
+                            elseif (k == 10 && t == 20 && m == 1 && sum(leaffile == 'CCA1LL_6.mat'))
                                 subplot(2,12,[9 12])
                                 d=histogram(temp',nbins,'FaceColor','w','LineWidth',2); % Plot histogram of local Moran values
                                 hold on
@@ -708,7 +857,7 @@ if isfile(fullfile(pwd,'breakxaxis.m')) && isfile(fullfile(pwd,'breakyaxis.m'))
                                 set(p,'AlphaData',nansum(im,3)>0) % Set all not t,k to invisible
                                 hold on
                                 text(k+1,t+1,'2','interpreter','latex','FontSize',25) % Label pixel
-                            elseif (k == 25 && t == 28 && m == 1 && sum(leaffile == 'CCA1LL_6.mat')
+                            elseif (k == 25 && t == 28 && m == 1 && sum(leaffile == 'CCA1LL_6.mat'))
                                 subplot(2,12,[16 19])
                                 d=histogram(temp',nbins,'FaceColor','w','LineWidth',2);
                                 hold on
@@ -737,7 +886,7 @@ if isfile(fullfile(pwd,'breakxaxis.m')) && isfile(fullfile(pwd,'breakyaxis.m'))
                                 set(p,'AlphaData',nansum(im,3)>0) % Set all not t,k to invisible
                                 hold on
                                 text(k+1,t+1,'3','interpreter','latex','FontSize',25) % Label pixel
-                            elseif (k == 19 && t == 32 && m == 1 && sum(leaffile == 'CCA1LL_6.mat')
+                            elseif (k == 19 && t == 32 && m == 1 && sum(leaffile == 'CCA1LL_6.mat'))
                                 subplot(2,12,[21 24])
                                 d=histogram(temp',nbins,'FaceColor','w','LineWidth',2); % Plot histogram of local Moran values
                                 hold on
@@ -941,8 +1090,6 @@ if isfile(fullfile(pwd,'breakxaxis.m')) && isfile(fullfile(pwd,'breakyaxis.m'))
         Zt(abs(SignficanceAtT) == 1) = 1; % One  if significant
         Zt(abs(SignficanceAtT) == 0) = 0; % Else Zt = 0
         Zt(~leaf) = NaN; %Remove zeros due to NaN values
-        
-        
         
         
         
